@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import WordDefineTooltip from "./WordDefineTooltip";
 import { lookupWord } from "../services/dictionaryService";
+import QuizReflectionPrompt from "./QuizReflectionPrompt";
 
 /**
  * Extract plain text from JSX/HTML content for TTS.
@@ -157,6 +158,43 @@ function ArticleView({ title, content, onNextArticle }) {
   }
   // END TAP-TO-DEFINE
 
+  // --- POST-READING QUIZ/REFLECTION MOCK DATA & STATE ---
+  // Example: alternate between quiz and reflection for demo
+  const demoPrompts = [
+    {
+      type: "multiple-choice",
+      question: "What is the best first step to take when confronted by a new technology?",
+      options: [
+        "Ignore it and keep current habits",
+        "Investigate and try to understand its basics",
+        "Buy the latest gadgets immediately",
+        "Wait until everyone else starts using it"
+      ],
+      answer: 1,
+      explanation: "Investigating and seeking to understand a new technology is the best first step—curiosity and foundational knowledge foster informed decisions."
+    },
+    {
+      type: "reflection",
+      question: "Summarize, in two sentences, the main argument or takeaway from the article. How might this new knowledge help you in your studies or daily life?",
+      explanation: ""
+    }
+  ];
+  // Rotate: even article => quiz, odd article => reflection (for demo)
+  const [promptIndex, setPromptIndex] = useState(0);
+  const [promptShown, setPromptShown] = useState(true);
+
+  // Reset prompt when article changes (using title as a unique key)
+  React.useEffect(() => {
+    setPromptIndex((idx) => (idx + 1) % demoPrompts.length);
+    setPromptShown(true);
+    // eslint-disable-next-line
+  }, [title]);
+
+  // Handler for closing prompt (e.g., after user submits)
+  function handlePromptDone() {
+    setPromptShown(false);
+  }
+
   return (
     <section
       style={{
@@ -276,6 +314,13 @@ function ArticleView({ title, content, onNextArticle }) {
       >
         Next Article →
       </button>
+      {/* --- POST-READING QUIZ/REFLECTION PROMPT --- */}
+      {promptShown && (
+        <QuizReflectionPrompt
+          quiz={demoPrompts[promptIndex % demoPrompts.length]}
+          onDone={handlePromptDone}
+        />
+      )}
       {/* Accessibility/help note */}
       <span
         style={{
