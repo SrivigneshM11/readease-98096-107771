@@ -25,11 +25,23 @@
  *   - Restart `npm start` after editing .env.
  *   - Never commit .env with sensitive keys to your version control!
  */
+/**
+ * Enhanced diagnostics: Logs authentication setup and API errors for debugging HTTP 401 errors.
+ */
 export async function fetchArticlesByGenre(genre) {
   const API_KEY = process.env.REACT_APP_NEWSDATA_API_KEY;  // Must be set in .env as REACT_APP_NEWSDATA_API_KEY
+
+  // -- Diagnostic logging for runtime/build-time variable visibility --
   if (!API_KEY) {
+    if (typeof window !== "undefined" && window.location && window.location.hostname === "localhost") {
+      // eslint-disable-next-line
+      console.error(
+        "[NewsData.io] API key missing! Check .env in frontend_react, value for REACT_APP_NEWSDATA_API_KEY, and ensure you RESTARTED the dev server. The fetch will throw."
+      );
+    }
     throw new Error(
-      "NewsData.io API key is not set. Create a .env file with REACT_APP_NEWSDATA_API_KEY=YOUR_API_KEY"
+      "[NewsData.io] API key is not set (REACT_APP_NEWSDATA_API_KEY). " +
+      "Create .env in your project root with REACT_APP_NEWSDATA_API_KEY=YOUR_API_KEY and restart the dev server."
     );
   }
 
@@ -67,18 +79,35 @@ export async function fetchArticlesByGenre(genre) {
     params.append("q", normalized);
   }
 
-  // Build the request URL
+  // Build the request URL (log diagnostic info)
   const url = `https://newsdata.io/api/1/news?${params.toString()}`;
+
+  // --- Diagnostics: Show the effective URL and API key status ---
+  if (typeof window !== "undefined" && window.location && window.location.hostname === "localhost") {
+    // eslint-disable-next-line
+    console.info(`[NewsData.io] Fetching articles with URL:`, url);
+    // eslint-disable-next-line
+    console.info(`[NewsData.io] API key is${API_KEY ? " " : " NOT "}set.`);
+  }
 
   let res;
   try {
     res = await fetch(url);
   } catch (err) {
-    throw new Error("Failed to fetch articles: " + err.message);
+    // Extra diagnostics
+    // eslint-disable-next-line
+    console.error("[NewsData.io] Network or fetch error:", err);
+    throw new Error("[NewsData.io] Failed to fetch articles: " + err.message);
   }
 
   if (!res.ok) {
-    throw new Error(`NewsData API error: HTTP ${res.status}`);
+    let reason = `[NewsData.io] API error: HTTP ${res.status}`;
+    if (res.status === 401) {
+      reason += " (Unauthorized: Check if your API key is correct and has quota. See docs for setup and ensure correct .env and restart.)";
+      // eslint-disable-next-line
+      console.error(reason, { attemptedUrl: url, usingKey: API_KEY ? "SET" : "NOT SET" });
+    }
+    throw new Error(reason);
   }
   const data = await res.json();
   /* Expected response:
