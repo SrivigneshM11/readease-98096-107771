@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import ArticleView from "../components/ArticleView";
 import { fetchArticlesByGenre } from "../services/articleService";
+import ReadingProgressTracker, { recordReadingSession } from "../components/ReadingProgressTracker";
 
 // PUBLIC_INTERFACE
 function Article() {
@@ -71,7 +72,16 @@ function Article() {
   const handleNextArticle = () => {
     if (articleList.length === 0) return;
     setArticleIdx((prevIdx) => (prevIdx + 1) % articleList.length);
+    // Do not record here, record on article viewed
   };
+
+  // Record progress when a new article loads
+  useEffect(() => {
+    if (articleList.length > 0) {
+      recordReadingSession();
+    }
+    // eslint-disable-next-line
+  }, [articleIdx, articleList.length]);
 
   // If genre not known in navigation
   if (!genre) {
@@ -175,11 +185,14 @@ function Article() {
   );
 
   return (
-    <ArticleView
-      title={thisArticle.title}
-      content={articleContent}
-      onNextArticle={handleNextArticle}
-    />
+    <>
+      <ReadingProgressTracker />
+      <ArticleView
+        title={thisArticle.title}
+        content={articleContent}
+        onNextArticle={handleNextArticle}
+      />
+    </>
   );
 }
 
