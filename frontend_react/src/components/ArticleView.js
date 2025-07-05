@@ -1,4 +1,6 @@
 import React, { useRef, useState } from "react";
+import WordDefineTooltip from "./WordDefineTooltip";
+import { lookupWord } from "../services/dictionaryService";
 
 /**
  * Extract plain text from JSX/HTML content for TTS.
@@ -64,6 +66,97 @@ function ArticleView({ title, content, onNextArticle }) {
     // eslint-disable-next-line
   }, [title, content]);
 
+  // TAP-TO-DEFINE STATE AND LOGIC
+  const [defineWord, setDefineWord] = useState(null); // the word string
+  const [defineRect, setDefineRect] = useState(null); // DOMRect of tapped element
+  const [defineLoading, setDefineLoading] = useState(false);
+  const [defineResult, setDefineResult] = useState("");
+  const [defineError, setDefineError] = useState("");
+
+  // Handler: On word click/tap/focus
+  const handleWordClick = async (word, event) => {
+    const rect = event.target.getBoundingClientRect();
+    setDefineWord(word);
+    setDefineRect(rect);
+    setDefineLoading(true);
+    setDefineResult("");
+    setDefineError("");
+    try {
+      const result = await lookupWord(word);
+      setDefineResult(result);
+      setDefineError("");
+    } catch (e) {
+      setDefineResult("");
+      setDefineError(e.message || "Error fetching definition.");
+    } finally {
+      setDefineLoading(false);
+    }
+  };
+
+  const handleTooltipClose = () => {
+    setDefineWord(null);
+    setDefineRect(null);
+    setDefineResult("");
+    setDefineError("");
+    setDefineLoading(false);
+  };
+
+  // Tokenize every word for tap-to-define, preserving formatting/links
+  function renderContentWithTapToDefine(node) {
+    if (typeof node === "string") {
+      // Split string by word/whitespace/punct. E.g. "Hello, world!" → ["Hello", ",", " ", "world", "!"]
+      const parts = node.match(/([A-Za-z'-]+|[^A-Za-z'-]|\\s+)/g) || [node];
+      return parts.map((part, i) => {
+        if (/^[A-Za-z'-]{2,}$/.test(part)) {
+          return (
+            <span
+              key={`${part}-${i}`}
+              role="button"
+              tabIndex={0}
+              aria-label={`Define "${part}"`}
+              style={{
+                color: "var(--text-secondary)",
+                cursor: "pointer",
+                borderBottom: "1px dotted var(--text-secondary)",
+                background: defineWord === part ? "var(--bg-primary)" : "transparent",
+                padding: "1px 2.5px",
+                borderRadius: 4,
+                transition: "background 0.11s"
+              }}
+              onClick={e => handleWordClick(part, e)}
+              onKeyDown={e => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleWordClick(part, e);
+                }
+              }}
+            >{part}</span>
+          );
+        }
+        return <span key={`other-${i}`}>{part}</span>;
+      });
+    } else if (!node) {
+      return null;
+    } else if (Array.isArray(node)) {
+      return node.map(renderContentWithTapToDefine);
+    } else if (node.type === "a" && node.props && node.props.children) {
+      // Special: preserve links
+      return React.cloneElement(
+        node,
+        { ...node.props },
+        renderContentWithTapToDefine(node.props.children)
+      );
+    } else if (node.props && node.props.children) {
+      return React.cloneElement(
+        node,
+        { ...node.props },
+        renderContentWithTapToDefine(node.props.children)
+      );
+    }
+    return node;
+  }
+  // END TAP-TO-DEFINE
+
   return (
     <section
       style={{
@@ -79,6 +172,7 @@ function ArticleView({ title, content, onNextArticle }) {
         display: "flex",
         flexDirection: "column",
         alignItems: "stretch",
+        position: "relative"
       }}
       aria-label="Reading Article"
     >
@@ -104,9 +198,20 @@ function ArticleView({ title, content, onNextArticle }) {
           wordBreak: "break-word",
         }}
         id="article-content"
+        aria-label="Article content (tap or click any word for a definition)"
       >
-        {content}
+        {renderContentWithTapToDefine(content)}
       </article>
+      {/* --- TAP-TO-DEFINE TOOTIP --- */}
+      <WordDefineTooltip
+        open={!!defineWord}
+        word={defineWord}
+        targetRect={defineRect}
+        definition={defineResult}
+        loading={defineLoading}
+        error={defineError}
+        onClose={handleTooltipClose}
+      />
       {/* --- TTS BUTTON --- */}
       <button
         type="button"
@@ -185,11 +290,16 @@ function ArticleView({ title, content, onNextArticle }) {
         aria-live="polite"
         aria-atomic="true"
       >
+        <span>
         {typeof window !== "undefined" && window.speechSynthesis
           ? isSpeaking
             ? "Reading aloud... You can stop at any time."
             : "Click 'Read Aloud' to listen to this article. Your browser speaks the text."
           : "Text-to-Speech is not supported in this browser."}
+        </span><br />
+        <span style={{ fontSize: "0.90em", color: "var(--text-secondary)" }}>
+          Tap or click <b>any word</b> for its dictionary definition.
+        </span>
       </span>
     </section>
   );
