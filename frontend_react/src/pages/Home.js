@@ -4,6 +4,7 @@ import GenreGrid from "../components/GenreGrid";
 // PUBLIC_INTERFACE
 function Home() {
   /** Home page for genre selection - displays genre grid */
+  // Navigation is handled by GenreGrid for routing to the Article page.
   return (
     <section>
       <h1 style={{ fontSize: "2.4rem", fontWeight: 700, marginBottom: 24 }}>

@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
 // SVG ICONS for each genre (simple, minimal, and built-in for no dependencies)
 const genreIcons = {
@@ -73,11 +74,31 @@ const genres = [
   { name: "Literature", color: "#F7B731" },
 ];
 
+/*
+// Removed duplicate: import { useNavigate } from "react-router-dom";
+*/
+
 // PUBLIC_INTERFACE
 function GenreGrid() {
   /**
    * Grid component that displays all genres with icons and modern styling.
+   * Clicking a genre navigates to the Article page for that genre.
    */
+  const navigate = useNavigate();
+
+  // Handler for clicking or keyboard-activating a card
+  const handleGenreSelect = (genreName) => {
+    navigate("/article", { state: { genre: genreName } });
+  };
+
+  // For accessibility, support Enter/Space key activation on card
+  const handleKeyDown = (e, genreName) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handleGenreSelect(genreName);
+    }
+  };
+
   return (
     <div className="genre-grid">
       {genres.map((genre) => (
@@ -92,6 +113,8 @@ function GenreGrid() {
           tabIndex={0}
           role="button"
           aria-label={genre.name}
+          onClick={() => handleGenreSelect(genre.name)}
+          onKeyDown={(e) => handleKeyDown(e, genre.name)}
         >
           <span className="genre-icon">{genreIcons[genre.name]}</span>
           <span className="genre-label">{genre.name}</span>
